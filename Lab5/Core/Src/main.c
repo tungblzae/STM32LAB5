@@ -19,6 +19,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "uart_communication_fsm.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
@@ -61,6 +62,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_USART2_UART_Init(void);
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -84,6 +86,18 @@ int main ( void )
  MX_ADC1_Init () ;
 
  HAL_UART_Receive_IT (& huart2 , & temp , 1) ;
+ // UART
+ // System initialization
+     HAL_Init();
+     SystemClock_Config();
+
+     // Peripheral initialization
+     MX_GPIO_Init();
+     MX_USART2_UART_Init();
+
+     // Initialize FSMs
+     uart_communication_fsm_init();
+     command_parser_fsm_init();
 
  while (1)
  {
@@ -102,9 +116,16 @@ int main ( void )
     HAL_UART_Transmit (& huart2 , ( void *) str , sprintf ( str , "%d\n"
    , ADC_value ) , 1000) ;
     HAL_Delay (500) ;
- }
 
- }
+    // FSM updates and other application logic
+            if (buffer_flag == 1) {
+                command_parser_fsm_update();
+                buffer_flag = 0;
+            }
+
+            uart_communication_fsm_update();
+        }
+
 
 /**
   * @brief System Clock Configuration
@@ -198,15 +219,12 @@ static void MX_ADC1_Init(void)
   * @param None
   * @retval None
   */
-static void MX_USART2_UART_Init(void)
-{
 
+static void MX_USART2_UART_Init(void) {
   /* USER CODE BEGIN USART2_Init 0 */
-
   /* USER CODE END USART2_Init 0 */
 
   /* USER CODE BEGIN USART2_Init 1 */
-
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
   huart2.Init.BaudRate = 9600;
@@ -216,20 +234,24 @@ static void MX_USART2_UART_Init(void)
   huart2.Init.Mode = UART_MODE_TX_RX;
   huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart2) != HAL_OK)
-  {
+  if (HAL_UART_Init(&huart2) != HAL_OK) {
     Error_Handler();
   }
   /* USER CODE BEGIN USART2_Init 2 */
 
-  /* USER CODE END USART2_Init 2 */
+  // Enable UART GPIO pins (PA2 as Tx, PA3 as Rx)
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  GPIO_InitStruct.Pin = GPIO_PIN_2 | GPIO_PIN_3;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF7_USART2;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
+  /* USER CODE END USART2_Init 2 */
 }
 
-/**
-  * @brief GPIO Initialization Function
-  * @param None
-  * @retval None
   */
 static void MX_GPIO_Init(void)
 {
@@ -257,6 +279,9 @@ void Error_Handler(void)
   }
   /* USER CODE END Error_Handler_Debug */
 }
+
+
+
 
 #ifdef  USE_FULL_ASSERT
 /**

@@ -31,4 +31,7 @@ uint8_t is_command_complete(void);
 // Function to get the command data
 void get_command_data(uint8_t *command_data);
 
+// Add any necessary external variable declarations here
+extern uint8_t buffer_flag;
+
 #endif /* SRC_COMMAND_PARSER_FSM_H_ */
