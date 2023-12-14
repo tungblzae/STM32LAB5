@@ -1,36 +1,63 @@
 /*
- * command_parser_fsm.h
+ * command_parser_fsm.c
  *
  *  Created on: Dec 14, 2023
  *      Author: Admin
  */
 
-#ifndef SRC_COMMAND_PARSER_FSM_H_
-#define SRC_COMMAND_PARSER_FSM_H_
+#include "command_parser_fsm.h"
+#include <string.h>
 
+static CommandParserState command_state = COMMAND_IDLE;
+static uint8_t command_buffer[MAX_BUFFER_SIZE];
+static uint8_t command_index = 0;
+static uint8_t command_complete_flag = 0;
 
-#define MAX_BUFFER_SIZE 30
+void command_parser_fsm_init(void) {
+    command_state = COMMAND_IDLE;
+    command_index = 0;
+    command_complete_flag = 0;
+}
 
-// Define possible states for the command parser FSM
-typedef enum {
-    COMMAND_IDLE,
-    COMMAND_RECEIVING,
-    COMMAND_COMPLETE
-} CommandParserState;
+void command_parser_fsm_update(uint8_t received_char) {
+    switch (command_state) {
+        case COMMAND_IDLE:
+            if (received_char == '!') {
+                command_state = COMMAND_RECEIVING;
+                command_index = 0;
+            }
+            break;
 
-// Function to initialize the command parser FSM
-void command_parser_fsm_init(void);
+        case COMMAND_RECEIVING:
+            if (received_char == '#') {
+                command_buffer[command_index] = '\0'; // Null-terminate the string
+                command_complete_flag = 1;
+                command_state = COMMAND_COMPLETE;
+            } else {
+                command_buffer[command_index++] = received_char;
+                if (command_index == MAX_BUFFER_SIZE - 1) {
+                    // Buffer overflow, reset state
+                    command_state = COMMAND_IDLE;
+                }
+            }
+            break;
 
-// Function to update the command parser FSM based on the received character
-void command_parser_fsm_update(uint8_t received_char);
+        case COMMAND_COMPLETE:
+            // Additional processing if needed
+            break;
 
-// Function to check if a command is complete
-uint8_t is_command_complete(void);
+        default:
+            // Handle unexpected state
+            command_parser_fsm_init();
+            break;
+    }
+}
 
-// Function to get the command data
-void get_command_data(uint8_t *command_data);
+uint8_t is_command_complete(void) {
+    return command_complete_flag;
+}
 
-// Add any necessary external variable declarations here
-extern uint8_t buffer_flag;
-
-#endif /* SRC_COMMAND_PARSER_FSM_H_ */
+void get_command_data(uint8_t *command_data) {
+    // Copy the command data to the provided buffer
+    strcpy(command_data, command_buffer);
+}
